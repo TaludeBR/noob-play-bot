@@ -233,18 +233,29 @@ function getOracleText(card) {
 }
 
 function formatLegalities(legalities = {}) {
-  const commander = legalities.commander || "unknown";
-  const modern = legalities.modern || "unknown";
-  const standard = legalities.standard || "unknown";
-  const pioneer = legalities.pioneer || "unknown";
-  const pauper = legalities.pauper || "unknown";
+  const formats = {
+    commander: "Commander",
+    modern: "Modern",
+    pioneer: "Pioneer",
+    pauper: "Pauper",
+    standard: "Standard"
+  };
 
-  return `Legalidade:
-Commander: ${commander}
-Modern: ${modern}
-Pioneer: ${pioneer}
-Pauper: ${pauper}
-Standard: ${standard}`;
+  const translateStatus = {
+    legal: "Permitida",
+    not_legal: "Não permitida",
+    banned: "Banida",
+    restricted: "Restrita",
+    unknown: "Desconhecida"
+  };
+
+  const lines = Object.entries(formats).map(([key, label]) => {
+    const status = legalities[key] || "unknown";
+    return `${label}: ${translateStatus[status] || status}`;
+  });
+
+  return `*Legalidade:*
+${lines.join("\n")}`;
 }
 
 app.listen(PORT, "0.0.0.0", () => {
