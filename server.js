@@ -66,6 +66,12 @@ async function handleCommand(text) {
     return await getCardRulings(cardName);
   }
 
+  if (lower.startsWith("!preco ") || lower.startsWith("!preço ")) {
+    const commandLength = lower.startsWith("!preço ") ? "!preço ".length : "!preco ".length;
+    const cardName = text.slice(commandLength).trim();
+  return await getCardPrices(cardName);
+  }
+
   if (lower === "!news" || lower === "!noticias" || lower === "!notícias") {
     return await getLatestNews();
   }
@@ -80,6 +86,9 @@ function helpMessage() {
 
 Comandos disponíveis:
 
+!ajuda
+Mostra esta lista de comandos.
+
 !carta <nome da carta>
 Exemplo: !carta lightning bolt
 
@@ -89,8 +98,8 @@ Exemplo: !regras sol ring
 !news
 Mostra as últimas notícias configuradas.
 
-!ajuda
-Mostra esta lista de comandos.`;
+!preco <nome da carta>
+Exemplo: !preco sol ring`;
 }
 
 async function getCard(cardName) {
@@ -230,6 +239,43 @@ function getOracleText(card) {
   }
 
   return "Texto Oracle não encontrado.";
+}
+
+async function getCardPrices(cardName) {
+  if (!cardName) {
+    return "Envie o nome da carta. Exemplo: !preco sol ring";
+  }
+
+  const url = `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(cardName)}`;
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    return `Não encontrei nenhuma carta parecida com "${cardName}".`;
+  }
+
+  const card = await response.json();
+
+  const prices = card.prices || {};
+
+  const usd = prices.usd ? `$${prices.usd}` : "Não informado";
+  const usdFoil = prices.usd_foil ? `$${prices.usd_foil}` : "Não informado";
+  const usdEtched = prices.usd_etched ? `$${prices.usd_etched}` : "Não informado";
+  const eur = prices.eur ? `€${prices.eur}` : "Não informado";
+  const eurFoil = prices.eur_foil ? `€${prices.eur_foil}` : "Não informado";
+  const tix = prices.tix ? `${prices.tix} tix` : "Não informado";
+
+  return `*Preços — ${card.name}*
+
+USD: ${usd}
+USD Foil: ${usdFoil}
+USD Etched: ${usdEtched}
+EUR: ${eur}
+EUR Foil: ${eurFoil}
+MTGO: ${tix}
+
+Fonte: Scryfall
+${card.scryfall_uri}`;
 }
 
 function formatLegalities(legalities = {}) {
