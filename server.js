@@ -90,7 +90,7 @@ Comandos disponíveis:
 Mostra esta lista de comandos.
 
 !carta <nome da carta>
-Exemplo: !carta lightning bolt
+Exemplo: !carta sol ring
 
 !regras <nome da carta>
 Exemplo: !regras sol ring
@@ -98,7 +98,7 @@ Exemplo: !regras sol ring
 !news
 Mostra as últimas notícias configuradas.
 
-!preco <nome da carta>
+!preco ou !preço <nome da carta>
 Exemplo: !preco sol ring`;
 }
 
