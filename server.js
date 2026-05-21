@@ -254,7 +254,7 @@ function formatLegalities(legalities = {}) {
     return `${label}: ${translateStatus[status] || status}`;
   });
 
-  return `*Legalidade:*
+  return `Legalidade:
 ${lines.join("\n")}`;
 }
 
