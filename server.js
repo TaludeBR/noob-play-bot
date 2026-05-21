@@ -69,7 +69,7 @@ async function handleCommand(text) {
   if (lower.startsWith("!preco ") || lower.startsWith("!preço ")) {
     const commandLength = lower.startsWith("!preço ") ? "!preço ".length : "!preco ".length;
     const cardName = text.slice(commandLength).trim();
-  return await getCardPrices(cardName);
+    return await getCardPrices(cardName);
   }
 
   if (lower === "!news" || lower === "!noticias" || lower === "!notícias") {
