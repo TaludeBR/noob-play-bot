@@ -56,19 +56,70 @@ async function handleCommand(text) {
     return helpMessage();
   }
 
+  // Magic: The Gathering
+  if (lower.startsWith("!carta mtg ")) {
+    const cardName = text.slice("!carta mtg ".length).trim();
+    return await getCard(cardName);
+  }
+
+  if (lower.startsWith("!preco mtg ") || lower.startsWith("!preço mtg ")) {
+    const commandLength = lower.startsWith("!preço mtg ")
+      ? "!preço mtg ".length
+      : "!preco mtg ".length;
+
+    const cardName = text.slice(commandLength).trim();
+    return await getCardPrices(cardName);
+  }
+
+  if (lower.startsWith("!regra mtg ") || lower.startsWith("!regras mtg ")) {
+    const commandLength = lower.startsWith("!regras mtg ")
+      ? "!regras mtg ".length
+      : "!regra mtg ".length;
+
+    const cardName = text.slice(commandLength).trim();
+    return await getCardRulings(cardName);
+  }
+
   // Pokémon TCG
-  if (lower.startsWith("!carta pokemon ")) {
-    const cardName = text.slice("!carta pokemon ".length).trim();
+  if (lower.startsWith("!carta pkm ") || lower.startsWith("!carta pokemon ")) {
+    const commandLength = lower.startsWith("!carta pokemon ")
+      ? "!carta pokemon ".length
+      : "!carta pkm ".length;
+
+    const cardName = text.slice(commandLength).trim();
     return await getPokemonCard(cardName);
   }
 
-  if (lower.startsWith("!preco pokemon ") || lower.startsWith("!preço pokemon ")) {
-    const commandLength = lower.startsWith("!preço pokemon ")
-      ? "!preço pokemon ".length
-      : "!preco pokemon ".length;
+  if (
+    lower.startsWith("!preco pkm ") ||
+    lower.startsWith("!preço pkm ") ||
+    lower.startsWith("!preco pokemon ") ||
+    lower.startsWith("!preço pokemon ")
+  ) {
+    let commandLength = "!preco pkm ".length;
+
+    if (lower.startsWith("!preço pkm ")) commandLength = "!preço pkm ".length;
+    if (lower.startsWith("!preco pokemon ")) commandLength = "!preco pokemon ".length;
+    if (lower.startsWith("!preço pokemon ")) commandLength = "!preço pokemon ".length;
 
     const cardName = text.slice(commandLength).trim();
     return await getPokemonCardPrices(cardName);
+  }
+
+  if (
+    lower.startsWith("!regra pkm ") ||
+    lower.startsWith("!regras pkm ") ||
+    lower.startsWith("!regra pokemon ") ||
+    lower.startsWith("!regras pokemon ")
+  ) {
+    let commandLength = "!regra pkm ".length;
+
+    if (lower.startsWith("!regras pkm ")) commandLength = "!regras pkm ".length;
+    if (lower.startsWith("!regra pokemon ")) commandLength = "!regra pokemon ".length;
+    if (lower.startsWith("!regras pokemon ")) commandLength = "!regras pokemon ".length;
+
+    const cardName = text.slice(commandLength).trim();
+    return await getPokemonRules(cardName);
   }
 
   // Yu-Gi-Oh!
@@ -86,19 +137,35 @@ async function handleCommand(text) {
     return await getYgoCardPrices(cardName);
   }
 
-  // Magic: The Gathering como padrão
+  if (lower.startsWith("!regra ygo ") || lower.startsWith("!regras ygo ")) {
+    const commandLength = lower.startsWith("!regras ygo ")
+      ? "!regras ygo ".length
+      : "!regra ygo ".length;
+
+    const cardName = text.slice(commandLength).trim();
+    return await getYgoRules(cardName);
+  }
+
+  // Aliases antigos de Magic, mantidos por compatibilidade
   if (lower.startsWith("!carta ")) {
     const cardName = text.slice("!carta ".length).trim();
     return await getCard(cardName);
   }
 
-  if (lower.startsWith("!regras ")) {
-    const cardName = text.slice("!regras ".length).trim();
+  if (lower.startsWith("!regras ") || lower.startsWith("!regra ")) {
+    const commandLength = lower.startsWith("!regras ")
+      ? "!regras ".length
+      : "!regra ".length;
+
+    const cardName = text.slice(commandLength).trim();
     return await getCardRulings(cardName);
   }
 
   if (lower.startsWith("!preco ") || lower.startsWith("!preço ")) {
-    const commandLength = lower.startsWith("!preço ") ? "!preço ".length : "!preco ".length;
+    const commandLength = lower.startsWith("!preço ")
+      ? "!preço ".length
+      : "!preco ".length;
+
     const cardName = text.slice(commandLength).trim();
     return await getCardPrices(cardName);
   }
@@ -120,31 +187,37 @@ Comandos disponíveis:
 !ajuda
 Mostra esta lista de comandos.
 
-*Magic: The Gathering*
-!carta <nome da carta>
-Exemplo: !carta lightning bolt
+_*Magic: The Gathering*_
+!carta mtg <nome da carta>
+Exemplo: !carta mtg lightning bolt
 
-!regras <nome da carta>
-Exemplo: !regras sol ring
+!preco ou !preço mtg <nome da carta>
+Exemplo: !preco mtg lightning bolt
 
-!preco ou !preço <nome da carta>
-Exemplo: !preco sol ring
+!regra mtg <nome da carta>
+Exemplo: !regra mtg lightning bolt
 
-*Pokémon TCG*
-!carta pokemon <nome da carta>
-Exemplo: !carta pokemon charizard
+_*Pokémon TCG*_
+!carta pkm <nome da carta>
+Exemplo: !carta pkm charizard
 
-!preco pokemon <nome da carta>
-Exemplo: !preco pokemon charizard
+!preco ou !preço pkm <nome da carta>
+Exemplo: !preco pkm charizard
 
-*Yu-Gi-Oh!*
+!regra pkm <nome da carta>
+Exemplo: !regra pkm charizard
+
+_*Yu-Gi-Oh!*_
 !carta ygo <nome da carta>
 Exemplo: !carta ygo dark magician
 
-!preco ygo <nome da carta>
+!preco ou !preço ygo <nome da carta>
 Exemplo: !preco ygo dark magician
 
-*Notícias*
+!regra ygo <nome da carta>
+Exemplo: !regra ygo dark magician
+
+_*Notícias*_
 !news
 Mostra as últimas notícias configuradas.`;
 }
@@ -401,7 +474,7 @@ ${card.images?.large || card.images?.small || ""}`;
 
 async function getPokemonCardPrices(cardName) {
   if (!cardName) {
-    return "Envie o nome da carta Pokémon. Exemplo: !preco pokemon charizard";
+    return "Envie o nome da carta Pokémon. Exemplo: !preco pkm charizard";
   }
 
   const query = `name:"${cardName}"`;
@@ -412,7 +485,7 @@ async function getPokemonCardPrices(cardName) {
   });
 
   if (!response.ok) {
-    return `Não consegui buscar preços de Pokémon agora. Tente novamente em alguns instantes.`;
+    return "Não consegui buscar preços de Pokémon agora. Tente novamente em alguns instantes.";
   }
 
   const data = await response.json();
@@ -431,6 +504,65 @@ Raridade: ${card.rarity || "Raridade não informada"}
 ${formatPokemonPriceSummary(card)}
 
 ${card.tcgplayer?.url || card.images?.large || ""}`;
+}
+
+async function getPokemonRules(cardName) {
+  if (!cardName) {
+    return "Envie o nome da carta Pokémon. Exemplo: !regra pkm charizard";
+  }
+
+  const query = `name:"${cardName}"`;
+  const url = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}&pageSize=1`;
+
+  const response = await fetch(url, {
+    headers: getPokemonHeaders()
+  });
+
+  if (!response.ok) {
+    return "Não consegui buscar informações de regras de Pokémon agora. Tente novamente em alguns instantes.";
+  }
+
+  const data = await response.json();
+  const card = data.data?.[0];
+
+  if (!card) {
+    return `Não encontrei nenhuma carta Pokémon parecida com "${cardName}".`;
+  }
+
+  const abilities = Array.isArray(card.abilities)
+    ? card.abilities.map((ability) => {
+        return `• ${ability.name}: ${ability.text || "Sem texto informado."}`;
+      }).join("\n\n")
+    : "Nenhuma habilidade informada.";
+
+  const attacks = Array.isArray(card.attacks)
+    ? card.attacks.map((attack) => {
+        const cost = Array.isArray(attack.cost) ? attack.cost.join(", ") : "Sem custo informado";
+        const damage = attack.damage ? ` — Dano: ${attack.damage}` : "";
+        const text = attack.text ? `\n${attack.text}` : "";
+        return `• ${attack.name} (${cost})${damage}${text}`;
+      }).join("\n\n")
+    : "Nenhum ataque informado.";
+
+  const rules = Array.isArray(card.rules)
+    ? card.rules.map((rule) => `• ${rule}`).join("\n")
+    : "Nenhuma regra especial informada.";
+
+  return `*Regras Pokémon — ${card.name}*
+
+Set: ${card.set?.name || "Set não informado"}
+Número: ${card.number || "Número não informado"}
+
+Habilidades:
+${abilities}
+
+Ataques:
+${attacks}
+
+Regras especiais:
+${rules}
+
+${card.images?.large || card.images?.small || ""}`;
 }
 
 function formatPokemonPriceSummary(card) {
@@ -502,6 +634,33 @@ async function getYgoCardPrices(cardName) {
   return `*Preços Yu-Gi-Oh! — ${card.name}*
 
 ${formatYgoPriceSummary(card)}
+
+${card.ygoprodeck_url || ""}`;
+}
+
+async function getYgoRules(cardName) {
+  if (!cardName) {
+    return "Envie o nome da carta de Yu-Gi-Oh!. Exemplo: !regra ygo dark magician";
+  }
+
+  const card = await findYgoCard(cardName);
+
+  if (!card) {
+    return `Não encontrei nenhuma carta de Yu-Gi-Oh! parecida com "${cardName}".`;
+  }
+
+  return `*Regras Yu-Gi-Oh! — ${card.name}*
+
+${card.type || "Tipo não informado"}
+${card.race ? `Tipo/Raça: ${card.race}` : ""}
+${card.attribute ? `Atributo: ${card.attribute}` : ""}
+${card.level ? `Nível/Rank/Link: ${card.level}` : ""}
+${typeof card.atk !== "undefined" ? `ATK/DEF: ${card.atk}/${typeof card.def !== "undefined" ? card.def : "?"}` : ""}
+
+Texto da carta:
+${limitText(card.desc || "Texto não informado.", 1500)}
+
+${formatYgoBanlist(card.banlist_info)}
 
 ${card.ygoprodeck_url || ""}`;
 }
