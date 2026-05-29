@@ -3,6 +3,7 @@ require("dotenv").config();
 const express = require("express");
 const Parser = require("rss-parser");
 const { MessagingResponse } = require("twilio").twiml;
+const { Pool } = require("pg");
 
 const app = express();
 const rssParser = new Parser();
@@ -14,6 +15,15 @@ const PORT = process.env.PORT || 3000;
 const BOT_NAME = process.env.BOT_NAME || "TCG Bot";
 const BOT_VERSION = process.env.BOT_VERSION || "1.1.0";
 const BOT_BUILD = process.env.BOT_BUILD || "UX aliases";
+
+const DATABASE_URL = process.env.DATABASE_URL || "";
+
+const pool = DATABASE_URL
+  ? new Pool({
+      connectionString: DATABASE_URL,
+      ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false
+    })
+  : null;
 
 app.get("/", (req, res) => {
   res.json({
@@ -42,7 +52,8 @@ app.post("/whatsapp", async (req, res) => {
 
   try {
     const incomingText = normalizeText(req.body.Body || "");
-    const reply = await handleCommand(incomingText);
+    const sender = req.body.From || "";
+    const reply = await handleCommand(incomingText, sender);
 
     twiml.message(reply);
     res.type("text/xml").send(twiml.toString());
@@ -57,7 +68,7 @@ app.post("/whatsapp", async (req, res) => {
   }
 });
 
-function normalizeText(text) {
+function normalizeText(text, sender) {
   return text.trim().replace(/\s+/g, " ");
 }
 
@@ -76,6 +87,27 @@ if (
   lower === "!version"
 ) {
   return versionMessage();
+}
+
+if (lower === "!assinar" || lower === "assinar") {
+  return await subscribeUser(sender);
+}
+
+if (lower === "!cancelar" || lower === "cancelar") {
+  return await unsubscribeUser(sender);
+}
+
+if (lower === "!preferencias" || lower === "!preferências" || lower === "preferencias" || lower === "preferências") {
+  return await getUserPreferences(sender);
+}
+
+if (lower.startsWith("!preferencias ") || lower.startsWith("!preferências ")) {
+  const commandLength = lower.startsWith("!preferências ")
+    ? "!preferências ".length
+    : "!preferencias ".length;
+
+  const preferencesText = text.slice(commandLength).trim();
+  return await setUserPreferences(sender, preferencesText);
 }
 
 if (lower === "!ajuda mtg" || lower === "ajuda mtg" || lower === "!help mtg") {
@@ -292,6 +324,12 @@ Bot multi-TCG para consultar cartas, preços, regras e notícias.
 !ajuda mtg
 !ajuda pkm
 !ajuda ygo
+
+*Inscrição*
+!assinar
+!cancelar
+!preferencias
+!preferencias mtg pkm ygo
 
 *Outros*
 !versao
@@ -886,6 +924,231 @@ function formatLegalities(legalities = {}) {
 ${lines.join("\n")}`;
 }
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`${BOT_NAME} rodando na porta ${PORT}`);
-});
+async function initDb() {
+  if (!pool) {
+    console.warn("DATABASE_URL não configurada. Recursos de inscrição ficarão desativados.");
+    return;
+  }
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      whatsapp_number TEXT UNIQUE NOT NULL,
+      subscribed BOOLEAN NOT NULL DEFAULT TRUE,
+      preferred_games TEXT[] NOT NULL DEFAULT ARRAY['mtg', 'pkm', 'ygo'],
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  console.log("Banco de dados inicializado.");
+}
+
+function dbUnavailableMessage() {
+  return "O banco de dados ainda não está configurado. Tente novamente depois do próximo deploy.";
+}
+
+function normalizeWhatsappNumber(sender) {
+  return (sender || "").trim();
+}
+
+function normalizeGamePreferences(preferencesText) {
+  const aliases = {
+    mtg: "mtg",
+    magic: "mtg",
+    pkm: "pkm",
+    pokemon: "pkm",
+    pokémon: "pkm",
+    ygo: "ygo",
+    yugioh: "ygo",
+    "yu-gi-oh": "ygo",
+    "yu-gi-oh!": "ygo"
+  };
+
+  const rawItems = preferencesText
+    .toLowerCase()
+    .split(/\s+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  const normalized = rawItems
+    .map((item) => aliases[item])
+    .filter(Boolean);
+
+  return [...new Set(normalized)];
+}
+
+function formatGamePreferences(games = []) {
+  const labels = {
+    mtg: "Magic: The Gathering",
+    pkm: "Pokémon TCG",
+    ygo: "Yu-Gi-Oh!"
+  };
+
+  return games.map((game) => labels[game] || game).join(", ");
+}
+
+async function subscribeUser(sender) {
+  if (!pool) {
+    return dbUnavailableMessage();
+  }
+
+  const whatsappNumber = normalizeWhatsappNumber(sender);
+
+  if (!whatsappNumber) {
+    return "Não consegui identificar seu número de WhatsApp.";
+  }
+
+  await pool.query(
+    `
+    INSERT INTO users (whatsapp_number, subscribed, preferred_games, updated_at)
+    VALUES ($1, TRUE, ARRAY['mtg', 'pkm', 'ygo'], NOW())
+    ON CONFLICT (whatsapp_number)
+    DO UPDATE SET subscribed = TRUE, updated_at = NOW();
+    `,
+    [whatsappNumber]
+  );
+
+  return `Inscrição ativada.
+
+Você receberá notícias de:
+Magic: The Gathering, Pokémon TCG e Yu-Gi-Oh!
+
+Para alterar:
+!preferencias mtg pkm
+!preferencias mtg
+!preferencias pkm ygo
+
+Para cancelar:
+!cancelar`;
+}
+
+async function unsubscribeUser(sender) {
+  if (!pool) {
+    return dbUnavailableMessage();
+  }
+
+  const whatsappNumber = normalizeWhatsappNumber(sender);
+
+  if (!whatsappNumber) {
+    return "Não consegui identificar seu número de WhatsApp.";
+  }
+
+  await pool.query(
+    `
+    INSERT INTO users (whatsapp_number, subscribed, preferred_games, updated_at)
+    VALUES ($1, FALSE, ARRAY['mtg', 'pkm', 'ygo'], NOW())
+    ON CONFLICT (whatsapp_number)
+    DO UPDATE SET subscribed = FALSE, updated_at = NOW();
+    `,
+    [whatsappNumber]
+  );
+
+  return `Inscrição cancelada.
+
+Você não receberá mais o boletim diário.
+
+Para voltar:
+!assinar`;
+}
+
+async function getUserPreferences(sender) {
+  if (!pool) {
+    return dbUnavailableMessage();
+  }
+
+  const whatsappNumber = normalizeWhatsappNumber(sender);
+
+  if (!whatsappNumber) {
+    return "Não consegui identificar seu número de WhatsApp.";
+  }
+
+  const result = await pool.query(
+    `
+    SELECT subscribed, preferred_games
+    FROM users
+    WHERE whatsapp_number = $1;
+    `,
+    [whatsappNumber]
+  );
+
+  if (result.rows.length === 0) {
+    return `Você ainda não está inscrito.
+
+Para assinar o boletim diário:
+!assinar`;
+  }
+
+  const user = result.rows[0];
+  const status = user.subscribed ? "Ativa" : "Cancelada";
+  const games = formatGamePreferences(user.preferred_games);
+
+  return `*Suas preferências*
+
+Inscrição: ${status}
+TCGs: ${games || "Nenhum"}
+
+Para alterar:
+!preferencias mtg pkm ygo
+
+Para cancelar:
+!cancelar`;
+}
+
+async function setUserPreferences(sender, preferencesText) {
+  if (!pool) {
+    return dbUnavailableMessage();
+  }
+
+  const whatsappNumber = normalizeWhatsappNumber(sender);
+
+  if (!whatsappNumber) {
+    return "Não consegui identificar seu número de WhatsApp.";
+  }
+
+  const games = normalizeGamePreferences(preferencesText);
+
+  if (games.length === 0) {
+    return `Não entendi suas preferências.
+
+Use uma ou mais opções:
+mtg
+pkm
+ygo
+
+Exemplo:
+!preferencias mtg pkm`;
+  }
+
+  await pool.query(
+    `
+    INSERT INTO users (whatsapp_number, subscribed, preferred_games, updated_at)
+    VALUES ($1, TRUE, $2, NOW())
+    ON CONFLICT (whatsapp_number)
+    DO UPDATE SET subscribed = TRUE, preferred_games = $2, updated_at = NOW();
+    `,
+    [whatsappNumber, games]
+  );
+
+  return `Preferências atualizadas.
+
+Você receberá notícias de:
+${formatGamePreferences(games)}
+
+Para ver suas preferências:
+!preferencias
+
+Para cancelar:
+!cancelar`;
+}
+
+initDb()
+  .then(() => {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`${BOT_NAME} rodando na porta ${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error("Erro ao inicializar o banco de dados:", error);
+    process.exit(1);
+  });
