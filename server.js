@@ -12,17 +12,29 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 const BOT_NAME = process.env.BOT_NAME || "TCG Bot";
+const BOT_VERSION = process.env.BOT_VERSION || "1.1.0";
+const BOT_BUILD = process.env.BOT_BUILD || "UX aliases";
 
 app.get("/", (req, res) => {
   res.json({
     status: "online",
     bot: BOT_NAME,
-    endpoints: ["/whatsapp", "/health"]
+    version: BOT_VERSION,
+    build: BOT_BUILD,
+    endpoints: ["/whatsapp", "/health", "/version"]
   });
 });
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
+});
+
+app.get("/version", (req, res) => {
+  res.json({
+    bot: BOT_NAME,
+    version: BOT_VERSION,
+    build: BOT_BUILD
+  });
 });
 
 app.post("/whatsapp", async (req, res) => {
@@ -54,6 +66,16 @@ async function handleCommand(text) {
 
 if (!text || lower === "!ajuda" || lower === "ajuda" || lower === "help") {
   return helpMessage();
+}
+
+if (
+  lower === "!versao" ||
+  lower === "!versão" ||
+  lower === "versao" ||
+  lower === "versão" ||
+  lower === "!version"
+) {
+  return versionMessage();
 }
 
 if (lower === "!ajuda mtg" || lower === "ajuda mtg" || lower === "!help mtg") {
@@ -232,6 +254,13 @@ if (lower.startsWith("!yugioh ")) {
 return unknownCommandMessage();
 }
 
+function versionMessage() {
+  return `*${BOT_NAME}*
+
+Versão: ${BOT_VERSION}
+Build: ${BOT_BUILD}`;
+}
+
 function unknownCommandMessage() {
   return `Não entendi esse comando.
 
@@ -263,6 +292,9 @@ Bot multi-TCG para consultar cartas, preços, regras e notícias.
 !ajuda mtg
 !ajuda pkm
 !ajuda ygo
+
+*Outros*
+!versao
 
 *Notícias*
 !news
