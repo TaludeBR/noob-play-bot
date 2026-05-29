@@ -52,9 +52,64 @@ function normalizeText(text) {
 async function handleCommand(text) {
   const lower = text.toLowerCase();
 
-  if (!text || lower === "!ajuda" || lower === "ajuda" || lower === "help") {
-    return helpMessage();
-  }
+if (!text || lower === "!ajuda" || lower === "ajuda" || lower === "help") {
+  return helpMessage();
+}
+
+if (lower === "!ajuda mtg" || lower === "ajuda mtg" || lower === "!help mtg") {
+  return helpMtgMessage();
+}
+
+if (
+  lower === "!ajuda pkm" ||
+  lower === "ajuda pkm" ||
+  lower === "!ajuda pokemon" ||
+  lower === "ajuda pokemon" ||
+  lower === "!help pkm"
+) {
+  return helpPokemonMessage();
+}
+
+if (
+  lower === "!ajuda ygo" ||
+  lower === "ajuda ygo" ||
+  lower === "!ajuda yugioh" ||
+  lower === "ajuda yugioh" ||
+  lower === "!help ygo"
+) {
+  return helpYgoMessage();
+}
+
+// Atalhos rápidos de consulta
+if (lower.startsWith("!mtg ")) {
+  const cardName = text.slice("!mtg ".length).trim();
+  return await getCard(cardName);
+}
+
+if (lower.startsWith("!magic ")) {
+  const cardName = text.slice("!magic ".length).trim();
+  return await getCard(cardName);
+}
+
+if (lower.startsWith("!pkm ")) {
+  const cardName = text.slice("!pkm ".length).trim();
+  return await getPokemonCard(cardName);
+}
+
+if (lower.startsWith("!pokemon ")) {
+  const cardName = text.slice("!pokemon ".length).trim();
+  return await getPokemonCard(cardName);
+}
+
+if (lower.startsWith("!ygo ")) {
+  const cardName = text.slice("!ygo ".length).trim();
+  return await getYgoCard(cardName);
+}
+
+if (lower.startsWith("!yugioh ")) {
+  const cardName = text.slice("!yugioh ".length).trim();
+  return await getYgoCard(cardName);
+}
 
   // Magic: The Gathering
   if (lower.startsWith("!carta mtg ")) {
@@ -174,52 +229,96 @@ async function handleCommand(text) {
     return await getLatestNews();
   }
 
+return unknownCommandMessage();
+}
+
+function unknownCommandMessage() {
   return `Não entendi esse comando.
 
-${helpMessage()}`;
+Tente um destes exemplos:
+
+!mtg sol ring
+!pkm charizard
+!ygo dark magician
+
+Ou veja a ajuda:
+
+!ajuda
+!ajuda mtg
+!ajuda pkm
+!ajuda ygo`;
 }
 
 function helpMessage() {
   return `*${BOT_NAME}*
 
-Comandos disponíveis:
+Bot multi-TCG para consultar cartas, preços, regras e notícias.
 
-!ajuda
-Mostra esta lista de comandos.
+*Comandos rápidos*
+!mtg sol ring
+!pkm charizard
+!ygo dark magician
 
-_*Magic: The Gathering*_
+*Ajuda por jogo*
+!ajuda mtg
+!ajuda pkm
+!ajuda ygo
+
+*Notícias*
+!news
+
+Para comandos completos, use a ajuda de cada jogo.`;
+}
+
+function helpMtgMessage() {
+  return `_*Magic: The Gathering*_
+
 !carta mtg <nome da carta>
 Exemplo: !carta mtg lightning bolt
 
 !preco ou !preço mtg <nome da carta>
-Exemplo: !preco mtg lightning bolt
+Exemplo: !preco mtg sol ring
 
-!regra mtg <nome da carta>
+!regra ou !regras mtg <nome da carta>
 Exemplo: !regra mtg lightning bolt
 
-_*Pokémon TCG*_
+*Atalho rápido*
+!mtg <nome da carta>
+Exemplo: !mtg sol ring`;
+}
+
+function helpPokemonMessage() {
+  return `_*Pokémon TCG*_
+
 !carta pkm <nome da carta>
 Exemplo: !carta pkm charizard
 
 !preco ou !preço pkm <nome da carta>
 Exemplo: !preco pkm charizard
 
-!regra pkm <nome da carta>
+!regra ou !regras pkm <nome da carta>
 Exemplo: !regra pkm charizard
 
-_*Yu-Gi-Oh!*_
+*Atalho rápido*
+!pkm <nome da carta>
+Exemplo: !pkm charizard`;
+}
+
+function helpYgoMessage() {
+  return `_*Yu-Gi-Oh!*_
+
 !carta ygo <nome da carta>
 Exemplo: !carta ygo dark magician
 
 !preco ou !preço ygo <nome da carta>
 Exemplo: !preco ygo dark magician
 
-!regra ygo <nome da carta>
+!regra ou !regras ygo <nome da carta>
 Exemplo: !regra ygo dark magician
 
-_*Notícias*_
-!news
-Mostra as últimas notícias configuradas.`;
+*Atalho rápido*
+!ygo <nome da carta>
+Exemplo: !ygo dark magician`;
 }
 
 async function getCard(cardName) {
