@@ -72,7 +72,7 @@ function normalizeText(text, sender) {
   return text.trim().replace(/\s+/g, " ");
 }
 
-async function handleCommand(text) {
+async function handleCommand(text, sender = "") {
   const lower = text.toLowerCase();
 
 if (!text || lower === "!ajuda" || lower === "ajuda" || lower === "help") {
