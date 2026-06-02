@@ -97,17 +97,19 @@ if (lower === "!cancelar" || lower === "cancelar") {
   return await unsubscribeUser(sender);
 }
 
-if (lower === "!preferencias" || lower === "!preferências" || lower === "preferencias" || lower === "preferências") {
+const preferencesCommand = getPreferencesCommand(lower);
+
+if (preferencesCommand?.type === "show") {
   return await getUserPreferences(sender);
 }
 
-if (lower.startsWith("!preferencias ") || lower.startsWith("!preferências ")) {
-  const commandLength = lower.startsWith("!preferências ")
-    ? "!preferências ".length
-    : "!preferencias ".length;
-
-  const preferencesText = text.slice(commandLength).trim();
+if (preferencesCommand?.type === "set") {
+  const preferencesText = text.slice(preferencesCommand.prefix.length).trim();
   return await setUserPreferences(sender, preferencesText);
+}
+
+if (lower === "!boletim" || lower === "boletim" || lower === "!newsletter") {
+  return await getDailyBulletinPreview(sender);
 }
 
 if (lower === "!ajuda mtg" || lower === "ajuda mtg" || lower === "!help mtg") {
@@ -330,6 +332,10 @@ Bot multi-TCG para consultar cartas, preços, regras e notícias.
 !cancelar
 !preferencias
 !preferencias mtg pkm ygo
+
+*Boletim*
+!boletim
+Mostra uma prévia do boletim diário.
 
 *Outros*
 !versao
@@ -952,6 +958,55 @@ function normalizeWhatsappNumber(sender) {
   return (sender || "").trim();
 }
 
+function getPreferencesCommand(lower) {
+  const showCommands = [
+    "!preferencias",
+    "!preferências",
+    "!preferencia",
+    "!preferência",
+    "!prefs",
+    "preferencias",
+    "preferências",
+    "preferencia",
+    "preferência",
+    "prefs"
+  ];
+
+  if (showCommands.includes(lower)) {
+    return { type: "show" };
+  }
+
+  const setPrefixes = [
+    "!preferencias ",
+    "!preferências ",
+    "!preferencia ",
+    "!preferência ",
+    "!prefs ",
+    "preferencias ",
+    "preferências ",
+    "preferencia ",
+    "preferência ",
+    "prefs ",
+
+    // Tolerância para erro de digitação comum
+    "!referencia ",
+    "!referência ",
+    "referencia ",
+    "referência "
+  ];
+
+  const prefix = setPrefixes.find((item) => lower.startsWith(item));
+
+  if (!prefix) {
+    return null;
+  }
+
+  return {
+    type: "set",
+    prefix
+  };
+}
+
 function normalizeGamePreferences(preferencesText) {
   const aliases = {
     mtg: "mtg",
@@ -986,6 +1041,44 @@ function formatGamePreferences(games = []) {
   };
 
   return games.map((game) => labels[game] || game).join(", ");
+}
+
+async function getDailyBulletinPreview(sender) {
+  if (!pool) {
+    return dbUnavailableMessage();
+  }
+
+  const whatsappNumber = normalizeWhatsappNumber(sender);
+
+  if (!whatsappNumber) {
+    return "Não consegui identificar seu número de WhatsApp.";
+  }
+
+  const result = await pool.query(
+    `
+    SELECT subscribed, preferred_games
+    FROM users
+    WHERE whatsapp_number = $1;
+    `,
+    [whatsappNumber]
+  );
+
+  if (result.rows.length === 0 || !result.rows[0].subscribed) {
+    return `Você ainda não está inscrito no boletim diário.
+
+Para assinar:
+!assinar`;
+  }
+
+  const games = result.rows[0].preferred_games || ["mtg", "pkm", "ygo"];
+  const news = await getLatestNews();
+
+  return `*Prévia do boletim diário*
+
+TCGs selecionados:
+${formatGamePreferences(games)}
+
+${news}`;
 }
 
 async function subscribeUser(sender) {
